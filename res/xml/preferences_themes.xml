@@ -26,7 +26,7 @@
       <com.cyanogenmod.filemanager.ui.preferences.ThemeSelectorPreference
         android:key="cm_filemanager_theme"
         android:persistent="true"
-        android:defaultValue="com.cyanogenmod.filemanager:light" />
+        android:defaultValue="com.cyanogenmod.filemanager:dark" />
 
     </PreferenceCategory>
 
