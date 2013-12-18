@@ -18,8 +18,10 @@ package com.cyanogenmod.filemanager.activities;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnCancelListener;
@@ -59,6 +61,7 @@ import com.cyanogenmod.filemanager.ui.widgets.NavigationView.OnFilePickedListene
 import com.cyanogenmod.filemanager.util.DialogHelper;
 import com.cyanogenmod.filemanager.util.ExceptionUtil;
 import com.cyanogenmod.filemanager.util.FileHelper;
+import com.cyanogenmod.filemanager.util.MediaHelper;
 import com.cyanogenmod.filemanager.util.MimeTypeHelper;
 import com.cyanogenmod.filemanager.util.StorageHelper;
 
@@ -98,7 +101,7 @@ public class PickerActivity extends Activity
     private static final ComponentName CROP_COMPONENT =
                                     new ComponentName(
                                             "com.android.gallery3d", //$NON-NLS-1$
-                                            "com.android.gallery3d.app.CropImage"); //$NON-NLS-1$
+                                            "com.android.gallery3d.filtershow.crop.CropActivity"); //$NON-NLS-1$
 
     // Gallery crop editor action
     private static final String ACTION_CROP = "com.android.camera.action.CROP"; //$NON-NLS-1$
@@ -408,15 +411,26 @@ public class PickerActivity extends Activity
                     intent.setData(Uri.fromFile(src));
                     intent.putExtras(extras);
                     intent.setComponent(CROP_COMPONENT);
-                    startActivityForResult(intent, RESULT_CROP_IMAGE);
-                    return;
+                    try {
+                        startActivityForResult(intent, RESULT_CROP_IMAGE);
+                        return;
+                    } catch (ActivityNotFoundException e) {
+                        Log.w(TAG, "Failed to find crop activity!");
+                    }
+                    intent.setComponent(null);
+                    try {
+                        startActivityForResult(intent, RESULT_CROP_IMAGE);
+                        return;
+                    } catch (ActivityNotFoundException e) {
+                        Log.w(TAG, "Failed to find any crop activity!");
+                    }
                 }
             }
 
             // Return the picked file, as expected (this activity should fill the intent data
             // and return RESULT_OK result)
             Intent result = new Intent();
-            result.setData(getResultUriForFileFromIntent(src, getIntent()));
+            result.setData(getResultUriForFileFromIntent(getContentResolver(), src, getIntent()));
             setResult(Activity.RESULT_OK, result);
             finish();
 
@@ -478,8 +492,12 @@ public class PickerActivity extends Activity
         return file.getParentFile();
     }
 
-    private static Uri getResultUriForFileFromIntent(File src, Intent intent) {
-        Uri result = Uri.fromFile(src);
+    private static Uri getResultUriForFileFromIntent(ContentResolver cr, File src, Intent intent) {
+        // Try to find the preferred uri scheme
+        Uri result = MediaHelper.fileToContentUri(cr, src);
+        if (result == null) {
+            result = Uri.fromFile(src);
+        }
 
         if (Intent.ACTION_PICK.equals(intent.getAction()) && intent.getData() != null) {
             String scheme = intent.getData().getScheme();

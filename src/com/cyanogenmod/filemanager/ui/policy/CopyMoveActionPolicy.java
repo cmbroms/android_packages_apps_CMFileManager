@@ -28,6 +28,7 @@ import com.cyanogenmod.filemanager.console.RelaunchableException;
 import com.cyanogenmod.filemanager.listeners.OnRequestRefreshListener;
 import com.cyanogenmod.filemanager.listeners.OnSelectionListener;
 import com.cyanogenmod.filemanager.model.FileSystemObject;
+import com.cyanogenmod.filemanager.preferences.Bookmarks;
 import com.cyanogenmod.filemanager.util.CommandHelper;
 import com.cyanogenmod.filemanager.util.DialogHelper;
 import com.cyanogenmod.filemanager.util.ExceptionUtil;
@@ -302,6 +303,13 @@ public final class CopyMoveActionPolicy extends ActionsPolicy {
 
             @Override
             public void onSuccess() {
+                // Remove orphan bookmark paths
+                if (files != null) {
+                    for (LinkedResource linkedFiles : files) {
+                        Bookmarks.deleteOrphanBookmarks(ctx, linkedFiles.mSrc.getAbsolutePath());
+                    }
+                }
+
                 //Operation complete. Refresh
                 if (this.mOnRequestRefreshListener != null) {
                   // The reference is not the same, so refresh the complete navigation view
@@ -341,7 +349,6 @@ public final class CopyMoveActionPolicy extends ActionsPolicy {
              * @param dst The destination file
              * @param operation Indicates the operation to do
              */
-            @SuppressWarnings("hiding")
             private void doOperation(
                     Context ctx, File src, File dst, COPY_MOVE_OPERATION operation)
                     throws Throwable {
@@ -349,18 +356,23 @@ public final class CopyMoveActionPolicy extends ActionsPolicy {
                 if (src.compareTo(dst) == 0) return;
 
                 try {
+                    // Be sure to append a / if source is a folder (otherwise system crashes
+                    // under using absolute paths) Issue: CYAN-2791
+                    String source = src.getAbsolutePath() +
+                            (src.isDirectory() ? File.separator : "");
+
                     // Copy or move?
                     if (operation.compareTo(COPY_MOVE_OPERATION.MOVE) == 0 ||
                             operation.compareTo(COPY_MOVE_OPERATION.RENAME) == 0) {
                         CommandHelper.move(
                                 ctx,
-                                src.getAbsolutePath(),
+                                source,
                                 dst.getAbsolutePath(),
                                 null);
                     } else {
                         CommandHelper.copy(
                                 ctx,
-                                src.getAbsolutePath(),
+                                source,
                                 dst.getAbsolutePath(),
                                 null);
                     }
